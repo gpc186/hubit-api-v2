@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HubIT API - Roadmap Arquitetural & Centro de Modelagem</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#10b981',
+                            600: '#059669',
+                            700: '#047857',
+                            900: '#064e3b',
+                        },
+                        slateDark: '#0f172a',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 650px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 280px;
+            max-height: 350px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 320px;
+            }
+        }
+        pre code {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<!-- Chosen Palette: Slate & Emerald Engineering (Light/Dark slate neutrals, emerald accents, dark code containers) -->
+<!-- Application Structure Plan: SPA em formato Dashboard/Guia de Estudo Interativo. Inclui visão geral de progresso, Módulo Mestre de Modelagem de Banco de Dados (Matriz de Entidades, Desafio Hands-on e Gabarito de Referência com schema.prisma completo em dropdown), e abas navegáveis para os Milestones 0 a 6. Cada Milestone contém: Fundamentos (Under the Hood), Padrões Didáticos, Desafio Hands-on ("Sua Vez") com checklist interativo (localStorage), Gabarito de Referência Expansível (para feedback) e Curadoria de Fontes. -->
+<!-- Visualization & Content Choices:
+1. Matriz de Banco de Dados: Tabela filtrável por domínio/relação -> Permite consultar entidades, chaves e atributos.
+2. Gabarito Expansível do Banco de Dados: Dropdown contendo o arquivo schema.prisma oficial completo para validação imediata do código.
+3. Dashboard de Progresso: Chart.js Donut Chart + Barra de Progresso -> Atualizado via evento JS ao marcar checkboxes do "Sua Vez".
+4. Bloco de Gabarito Expansível por Milestone: Botão Toggle -> Exibe/oculta o código de solução oficial para comparação sem spoilers involuntários.
+5. Sem gráficos SVG ou Mermaid JS.
+-->
+<!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+<body class="bg-slate-900 text-slate-100 font-sans min-h-screen flex flex-col">
+
+    <!-- Top Header -->
+    <header class="border-b border-slate-800 bg-slate-950/80 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-9 h-9 rounded-lg bg-emerald-600 flex items-center justify-center font-bold text-white shadow-lg shadow-emerald-900/40 text-lg">
+                    H
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-slate-100 leading-tight">HubIT API <span class="text-xs font-normal text-emerald-400 bg-emerald-950 border border-emerald-800 px-2 py-0.5 rounded-full ml-2">NestJS + TDD Roadmap</span></h1>
+                    <p class="text-xs text-slate-400 hidden sm:block">Guia de Arquitetura Backend, Modelagem de Dados & Gabaritos de Referência</p>
+                </div>
+            </div>
+
+            <!-- Progress Tracker Indicator -->
+            <div class="flex items-center space-x-4">
+                <div class="text-right hidden md:block">
+                    <span class="text-xs text-slate-400 block">Progresso Prático</span>
+                    <span id="progress-percent" class="text-sm font-bold text-emerald-400">0% Concluído</span>
+                </div>
+                <div class="w-28 sm:w-36 bg-slate-800 h-3 rounded-full overflow-hidden p-0.5 border border-slate-700">
+                    <div id="progress-bar-fill" class="bg-emerald-500 h-full rounded-full transition-all duration-500 w-0"></div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace Container -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full flex flex-col md:flex-row gap-6">
+
+        <!-- Sidebar Navigation -->
+        <aside class="w-full md:w-64 flex-shrink-0">
+            <div class="bg-slate-800/80 rounded-xl border border-slate-700/60 p-3 sticky top-20">
+                <nav class="space-y-1" id="nav-tabs">
+                    <button data-tab="tab-modeling" class="nav-btn active w-full flex items-center px-3 py-2.5 text-xs font-medium rounded-lg text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 transition-all text-left">
+                        <span class="mr-2.5 text-base">🗄️</span>
+                        <span class="truncate">Modelagem de Dados</span>
+                    </button>
+                    <button data-tab="tab-m0" class="nav-btn w-full flex items-center px-3 py-2.5 text-xs font-medium rounded-lg text-slate-300 hover:bg-slate-700/50 transition-all text-left">
+                        <span class="mr-2.5 text-base">🏗️</span>
+                        <span class="truncate">M0: Infra Local & Fastify</span>
+                    </button>
+                    <button data-tab="tab-m1" class="nav-btn w-full flex items-center px-3 py-2.5 text-xs font-medium rounded-lg text-slate-300 hover:bg-slate-700/50 transition-all text-left">
+                        <span class="mr-2.5 text-base">🔑</span>
+                        <span class="truncate">M1: Auth, Users & Security</span>
+                    </button>
+                    <button data-tab="tab-m2" class="nav-btn w-full flex items-center px-3 py-2.5 text-xs font-medium rounded-lg text-slate-300 hover:bg-slate-700/50 transition-all text-left">
+                        <span class="mr-2.5 text-base">🏢</span>
+                        <span class="truncate">M2: Perfis & Validação</span>
+                    </button>
+                    <button data-tab="tab-m3" class="nav-btn w-full flex items-center px-3 py-2.5 text-xs font-medium rounded-lg text-slate-300 hover:bg-slate-700/50 transition-all text-left">
+                        <span class="mr-2.5 text-base">💼</span>
+                        <span class="truncate">M3: Vagas & Candidaturas</span>
+                    </button>
+                    <button data-tab="tab-m4" class="nav-btn w-full flex items-center px-3 py-2.5 text-xs font-medium rounded-lg text-slate-300 hover:bg-slate-700/50 transition-all text-left">
+                        <span class="mr-2.5 text-base">⚡</span>
+                        <span class="truncate">M4: Redis, BullMQ & Worker</span>
+                    </button>
+                    <button data-tab="tab-m5" class="nav-btn w-full flex items-center px-3 py-2.5 text-xs font-medium rounded-lg text-slate-300 hover:bg-slate-700/50 transition-all text-left">
+                        <span class="mr-2.5 text-base">🔌</span>
+                        <span class="truncate">M5: Integrações & Mocks</span>
+                    </button>
+                    <button data-tab="tab-m6" class="nav-btn w-full flex items-center px-3 py-2.5 text-xs font-medium rounded-lg text-slate-300 hover:bg-slate-700/50 transition-all text-left">
+                        <span class="mr-2.5 text-base">🎯</span>
+                        <span class="truncate">M6: Matching & Caching</span>
+                    </button>
+                </nav>
+
+                <div class="mt-6 pt-4 border-t border-slate-700/60 px-3">
+                    <span class="text-[10px] font-semibold tracking-wider text-slate-400 uppercase block mb-2">Resumo da Arquitetura</span>
+                    <div class="chart-container">
+                        <canvas id="architectureChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Dynamic Content Body -->
+        <main class="flex-1 min-w-0">
+
+            <!-- TAB: DATABASE MODELING (COM MATRIZ + SUA VEZ + GABARITO EXPANSÍVEL) -->
+            <section id="tab-modeling" class="tab-content space-y-6">
+                <div class="bg-slate-800/90 rounded-xl p-6 border border-slate-700/80 shadow-xl space-y-6">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-700">
+                        <div>
+                            <h2 class="text-2xl font-bold text-white flex items-center">
+                                <span class="mr-3">🗄️</span> Modelagem Estrutural do Banco de Dados PostgreSQL
+                            </h2>
+                            <p class="text-sm text-slate-300 mt-1">
+                                Guia conceitual e especificação técnica para construir o arquivo <code class="text-emerald-400 bg-slate-950 px-1.5 py-0.5 rounded">prisma/schema.prisma</code> da sua aplicação.
+                            </p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <input type="text" id="entity-search" placeholder="Filtrar entidade ou campo..." class="bg-slate-900 border border-slate-700 text-xs text-slate-200 px-3 py-2 rounded-lg focus:outline-none focus:border-emerald-500 w-48">
+                        </div>
+                    </div>
+
+                    <!-- Hands-on Challenge Box -->
+                    <div class="bg-slate-900/90 rounded-xl p-5 border border-slate-700/80">
+                        <h3 class="text-sm font-bold text-slate-200 mb-3 flex items-center">
+                            <span class="mr-2">🛠️</span> Sua Vez: Desafio Prático de Modelagem
+                        </h3>
+                        <p class="text-xs text-slate-300 mb-3">
+                            Antes de abrir o gabarito oficial abaixo, monte o seu arquivo <code class="text-emerald-400">schema.prisma</code> utilizando a matriz conceitual. Marque os itens conforme concluir:
+                        </p>
+                        <div class="space-y-2 text-xs text-slate-300">
+                            <label class="flex items-start space-x-3 cursor-pointer hover:text-white p-1 rounded">
+                                <input type="checkbox" class="task-checkbox mt-0.5 rounded bg-slate-950 border-slate-700 text-emerald-600 focus:ring-emerald-500" data-id="db-1">
+                                <span>Declarar os Enums: <code class="text-emerald-400">UserRole</code>, <code class="text-emerald-400">VerificationStatus</code>, <code class="text-emerald-400">JobStatus</code>, <code class="text-emerald-400">ApplicationStatus</code> e <code class="text-emerald-400">EvidenceSource</code>.</span>
+                            </label>
+                            <label class="flex items-start space-x-3 cursor-pointer hover:text-white p-1 rounded">
+                                <input type="checkbox" class="task-checkbox mt-0.5 rounded bg-slate-950 border-slate-700 text-emerald-600 focus:ring-emerald-500" data-id="db-2">
+                                <span>Criar relacionamentos 1:1 estritos com restrição <code class="text-amber-300">@unique</code> no FK (ex: <code class="text-slate-200">CandidateProfile.userId</code> e <code class="text-slate-200">CompanyProfile.userId</code>).</span>
+                            </label>
+                            <label class="flex items-start space-x-3 cursor-pointer hover:text-white p-1 rounded">
+                                <input type="checkbox" class="task-checkbox mt-0.5 rounded bg-slate-950 border-slate-700 text-emerald-600 focus:ring-emerald-500" data-id="db-3">
+                                <span>Criar a restrição composta <code class="text-emerald-400">@@unique([jobId, candidateId])</code> na tabela de Candidaturas (<code class="text-slate-200">Application</code>).</span>
+                            </label>
+                            <label class="flex items-start space-x-3 cursor-pointer hover:text-white p-1 rounded">
+                                <input type="checkbox" class="task-checkbox mt-0.5 rounded bg-slate-950 border-slate-700 text-emerald-600 focus:ring-emerald-500" data-id="db-4">
+                                <span>Mapear as tabelas de junção explícitas para N:M (<code class="text-emerald-400">CandidateSkill</code> e <code class="text-emerald-400">JobSkill</code>) utilizando chaves primárias compostas <code class="text-amber-300">@@id([idA, idB])</code>.</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Entity Matrix Table -->
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-200 mb-2 flex items-center">
+                            <span class="mr-2">📋</span> Matriz Conceitual de Entidades e Atributos
+                        </h3>
+                        <div class="overflow-x-auto custom-scrollbar border border-slate-700/80 rounded-xl">
+                            <table class="w-full text-left text-xs border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-950 text-slate-300 uppercase tracking-wider font-semibold border-b border-slate-700">
+                                        <th class="p-3">Entidade (Tabela)</th>
+                                        <th class="p-3">Módulo</th>
+                                        <th class="p-3">Atributos e Tipos Principais</th>
+                                        <th class="p-3">Relacionamentos</th>
+                                        <th class="p-3">Chaves e Restrições</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="entity-table-body" class="divide-y divide-slate-800 text-slate-300">
+                                    <!-- Row 1 -->
+                                    <tr class="hover:bg-slate-800/40">
+                                        <td class="p-3 font-mono text-emerald-400 font-bold">User</td>
+                                        <td class="p-3"><span class="bg-blue-950 text-blue-300 border border-blue-800 px-2 py-0.5 rounded">Users / Auth</span></td>
+                                        <td class="p-3">id (UUID), email (String), passwordHash (String), role (Enum: CANDIDATE, COMPANY, ADMIN)</td>
+                                        <td class="p-3">1:N RefreshToken<br>1:1 CandidateProfile<br>1:1 CompanyProfile</td>
+                                        <td class="p-3 font-mono text-amber-300">PK: id<br>UNIQUE: email</td>
+                                    </tr>
+                                    <!-- Row 2 -->
+                                    <tr class="hover:bg-slate-800/40 bg-slate-900/30">
+                                        <td class="p-3 font-mono text-emerald-400 font-bold">RefreshToken</td>
+                                        <td class="p-3"><span class="bg-blue-950 text-blue-300 border border-blue-800 px-2 py-0.5 rounded">Auth</span></td>
+                                        <td class="p-3">id (UUID), tokenHash (String), userId (FK), expiresAt (DateTime)</td>
+                                        <td class="p-3">N:1 User (onDelete: Cascade)</td>
+                                        <td class="p-3 font-mono text-amber-300">PK: id<br>UNIQUE: tokenHash</td>
+                                    </tr>
+                                    <!-- Row 3 -->
+                                    <tr class="hover:bg-slate-800/40">
+                                        <td class="p-3 font-mono text-emerald-400 font-bold">CandidateProfile</td>
+                                        <td class="p-3"><span class="bg-indigo-950 text-indigo-300 border border-indigo-800 px-2 py-0.5 rounded">Candidates</span></td>
+                                        <td class="p-3">id (UUID), userId (FK), fullName (String), headline (String?), bio (String?), location (String?)</td>
+                                        <td class="p-3">1:1 User<br>1:N Resume<br>1:N PortfolioProject<br>1:N Application<br>1:N Evidence<br>N:M CandidateSkill</td>
+                                        <td class="p-3 font-mono text-amber-300">PK: id<br>UNIQUE: userId</td>
+                                    </tr>
+                                    <!-- Row 4 -->
+                                    <tr class="hover:bg-slate-800/40 bg-slate-900/30">
+                                        <td class="p-3 font-mono text-emerald-400 font-bold">CompanyProfile</td>
+                                        <td class="p-3"><span class="bg-indigo-950 text-indigo-300 border border-indigo-800 px-2 py-0.5 rounded">Companies</span></td>
+                                        <td class="p-3">id (UUID), userId (FK), companyName (String), cnpj (String), status (Enum: PENDING, VERIFIED, REJECTED)</td>
+                                        <td class="p-3">1:1 User<br>1:N Job<br>1:N CompanyVerification</td>
+                                        <td class="p-3 font-mono text-amber-300">PK: id<br>UNIQUE: userId, cnpj</td>
+                                    </tr>
+                                    <!-- Row 5 -->
+                                    <tr class="hover:bg-slate-800/40">
+                                        <td class="p-3 font-mono text-emerald-400 font-bold">CompanyVerification</td>
+                                        <td class="p-3"><span class="bg-purple-950 text-purple-300 border border-purple-800 px-2 py-0.5 rounded">Verification</span></td>
+                                        <td class="p-3">id (UUID), companyId (FK), status (Enum), reviewerId (UUID?), reason (String?)</td>
+                                        <td class="p-3">N:1 CompanyProfile</td>
+                                        <td class="p-3 font-mono text-amber-300">PK: id</td>
+                                    </tr>
+                                    <!-- Row 6 -->
+                                    <tr class="hover:bg-slate-800/40 bg-slate-900/30">
+                                        <td class="p-3 font-mono text-emerald-400 font-bold">Job</td>
+                                        <td class="p-3"><span class="bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded">Jobs</span></td>
+                                        <td class="p-3">id (UUID), companyId (FK), title (String), description (String), status (Enum: DRAFT, PUBLISHED, PAUSED, CLOSED)</td>
+                                        <td class="p-3">N:1 CompanyProfile<br>1:N Application<br>N:M JobSkill</td>
+                                        <td class="p-3 font-mono text-amber-300">PK: id</td>
+                                    </tr>
+                                    <!-- Row 7 -->
+                                    <tr class="hover:bg-slate-800/40">
+                                        <td class="p-3 font-mono text-emerald-400 font-bold">Application</td>
+                                        <td class="p-3"><span class="bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded">Applications</span></td>
+                                        <td class="p-3">id (UUID), jobId (FK), candidateId (FK), status (Enum: PENDING, REVIEWING, INTERVIEW, APPROVED, REJECTED), resumeSnapshot (JSON)</td>
+                                        <td class="p-3">N:1 Job<br>N:1 CandidateProfile</td>
+                                        <td class="p-3 font-mono text-amber-300">PK: id<br>UNIQUE COMPOSTO: [jobId, candidateId]</td>
+                                    </tr>
+                                    <!-- Row 8 -->
+                                    <tr class="hover:bg-slate-800/40 bg-slate-900/30">
+                                        <td class="p-3 font-mono text-emerald-400 font-bold">Resume</td>
+                                        <td class="p-3"><span class="bg-teal-950 text-teal-300 border border-teal-800 px-2 py-0.5 rounded">Resumes</span></td>
+                                        <td class="p-3">id (UUID), candidateId (FK), title (String), isPrimary (Boolean)</td>
+                                        <td class="p-3">N:1 CandidateProfile<br>1:N ResumeExperience<br>1:N ResumeEducation</td>
+                                        <td class="p-3 font-mono text-amber-300">PK: id</td>
+                                    </tr>
+                                    <!-- Row 9 -->
+                                    <tr class="hover:bg-slate-800/40">
+                                        <td class="p-3 font-mono text-emerald-400 font-bold">Evidence</td>
+                                        <td class="p-3"><span class="bg-emerald-950 text-emerald-300 border border-emerald-800 px-2 py-0.5 rounded">Evidence</span></td>
+                                        <td class="p-3">id (UUID), candidateId (FK), source (Enum: GITHUB, CODEWARS, MANUAL), type (Enum), title (String), url (String), metadata (JSON)</td>
+                                        <td class="p-3">N:1 CandidateProfile</td>
+                                        <td class="p-3 font-mono text-amber-300">PK: id</td>
+                                    </tr>
+                                    <!-- Row 10 -->
+                                    <tr class="hover:bg-slate-800/40 bg-slate-900/30">
+                                        <td class="p-3 font-mono text-emerald-400 font-bold">Skill</td>
+                                        <td class="p-3"><span class="bg-rose-950 text-rose-300 border border-rose-800 px-2 py-0.5 rounded">Matching</span></td>
+                                        <td class="p-3">id (UUID), name (String)</td>
+                                        <td class="p-3">N:M CandidateSkill<br>N:M JobSkill</td>
+                                        <td class="p-3 font-mono text-amber-300">PK: id<br>UNIQUE: name</td>
+                                    </tr>
+                                    <!-- Row 11 -->
+                                    <tr class="hover:bg-slate-800/40">
+                                        <td class="p-3 font-mono text-emerald-400 font-bold">CandidateSkill</td>
+                                        <td class="p-3"><span class="bg-rose-950 text-rose-300 border border-rose-800 px-2 py-0.5 rounded">Matching (Junção)</span></td>
+                                        <td class="p-3">candidateId (FK), skillId (FK), yearsOfExp (Int)</td>
+                                        <td class="p-3">Explícito N:M entre CandidateProfile e Skill</td>
+                                        <td class="p-3 font-mono text-amber-300">PK COMPOSTA: [candidateId, skillId]</td>
+                                    </tr>
+                                    <!-- Row 12 -->
+                                    <tr class="hover:bg-slate-800/40 bg-slate-900/30">
+                                        <td class="p-3 font-mono text-emerald-400 font-bold">JobSkill</td>
+                                        <td class="p-3"><span class="bg-rose-950 text-rose-300 border border-rose-800 px-2 py-0.5 rounded">Matching (Junção)</span></td>
+                                        <td class="p-3">jobId (FK), skillId (FK), isMandatory (Boolean)</td>
+                                        <td class="p-3">Explícito N:M entre Job e Skill</td>
+                                        <td class="p-3 font-mono text-amber-300">PK COMPOSTA: [jobId, skillId]</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Toggle Gabarito / Resposta Correta Box -->
+                    <div class="border border-slate-700/80 rounded-xl overflow-hidden">
+                        <button onclick="toggleGabarito('gabarito-db')" class="w-full bg-slate-900 hover:bg-slate-800/80 p-4 text-left font-semibold text-xs text-amber-400 flex items-center justify-between border-b border-slate-800 transition-colors">
+                            <span class="flex items-center"><span class="mr-2">💡</span> Resposta Correta: Código Oficial schema.prisma (Clique para expandir/recolher)</span>
+                            <span id="icon-gabarito-db" class="text-base">▼</span>
+                        </button>
+                        <div id="gabarito-db" class="hidden p-4 bg-slate-950 space-y-4 text-xs font-mono">
+                            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                                <p class="text-slate-400 font-sans text-xs">Gabarito completo de referência do Prisma ORM para validação do seu modelo de dados:</p>
+                                <span class="text-emerald-400 bg-emerald-950/80 border border-emerald-800 px-2 py-0.5 rounded text-[10px] font-sans">prisma/schema.prisma</span>
+                            </div>
+                            <div class="bg-slate-900 p-4 rounded-lg border border-slate-800 overflow-x-auto custom-scrollbar">
+                                <pre class="text-emerald-300"><code>generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// ENUMS
+// ==========================================
+enum UserRole {
+  CANDIDATE
+  COMPANY
+  ADMIN
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum JobStatus {
+  DRAFT
+  PUBLISHED
+  PAUSED
+  CLOSED
+}
+
+enum ApplicationStatus {
+  PENDING
+  REVIEWING
+  INTERVIEW
+  APPROVED
+  REJECTED
+}
+
+enum EvidenceSource {
+  GITHUB
+  CODEWARS
+  MANUAL
+}
+
+// ==========================================
+// ENTIDADES CORE & AUTENTICAÇÃO
+// ==========================================
+model User {
+  id            String            @id @default(uuid())
+  email         String            @unique
+  passwordHash  String
+  role          UserRole          @default(CANDIDATE)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  refreshTokens RefreshToken[]
+  candidate     CandidateProfile?
+  company       CompanyProfile?
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("refresh_tokens")
+}
+
+// ==========================================
+// PERFIS PROFISSIONAIS & EMPRESARIAIS
+// ==========================================
+model CandidateProfile {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  fullName  String
+  headline  String?
+  bio       String?
+  location  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resumes      Resume[]
+  applications Application[]
+  evidences    Evidence[]
+  skills       CandidateSkill[]
+
+  @@map("candidate_profiles")
+}
+
+model CompanyProfile {
+  id          String             @id @default(uuid())
+  userId      String             @unique
+  companyName String
+  cnpj        String             @unique
+  status      VerificationStatus @default(PENDING)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  user          User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobs          Job[]
+  verifications CompanyVerification[]
+
+  @@map("company_profiles")
+}
+
+model CompanyVerification {
+  id         String             @id @default(uuid())
+  companyId  String
+  status     VerificationStatus
+  reviewerId String?
+  reason     String?
+  createdAt  DateTime           @default(now())
+
+  company CompanyProfile @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("company_verifications")
+}
+
+// ==========================================
+// VAGAS & CANDIDATURAS
+// ==========================================
+model Job {
+  id          String    @id @default(uuid())
+  companyId   String
+  title       String
+  description String
+  status      JobStatus @default(DRAFT)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  company      CompanyProfile @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  applications Application[]
+  skills       JobSkill[]
+
+  @@map("jobs")
+}
+
+model Application {
+  id             String            @id @default(uuid())
+  jobId          String
+  candidateId    String
+  status         ApplicationStatus @default(PENDING)
+  resumeSnapshot Json              // Imutabilidade do currículo no envio
+  createdAt      DateTime          @default(now())
+
+  job       Job              @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  candidate CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, candidateId]) // Previne candidaturas duplicadas
+  @@map("applications")
+}
+
+model Resume {
+  id          String   @id @default(uuid())
+  candidateId String
+  title       String
+  isPrimary   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  candidate CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@map("resumes")
+}
+
+model Evidence {
+  id          String         @id @default(uuid())
+  candidateId String
+  source      EvidenceSource
+  type        String
+  title       String
+  url         String
+  metadata    Json           // Dados flexíveis JSONB (stars, repositórios)
+  createdAt   DateTime       @default(now())
+
+  candidate CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@map("evidences")
+}
+
+// ==========================================
+// HABILIDADES & MATCHING (JUNÇÃO N:M)
+// ==========================================
+model Skill {
+  id   String @id @default(uuid())
+  name String @unique
+
+  candidateSkills CandidateSkill[]
+  jobSkills       JobSkill[]
+
+  @@map("skills")
+}
+
+model CandidateSkill {
+  candidateId String
+  skillId     String
+  yearsOfExp  Int    @default(0)
+
+  candidate CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  skill     Skill            @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([candidateId, skillId]) // Chave Primária Composta
+  @@map("candidate_skills")
+}
+
+model JobSkill {
+  jobId       String
+  skillId     String
+  isMandatory Boolean @default(true)
+
+  job   Job   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([jobId, skillId]) // Chave Primária Composta
+  @@map("job_skills")
+}</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB: MILESTONE 0 -->
+            <section id="tab-m0" class="tab-content hidden space-y-6">
+                <div class="bg-slate-800/90 rounded-xl p-6 border border-slate-700/80 shadow-xl space-y-6">
+                    <div>
+                        <div class="flex items-center space-x-2 text-xs font-semibold text-emerald-400 uppercase tracking-wider">
+                            <span>Milestone 0</span>
+                            <span>•</span>
+                            <span>Infraestrutura & Server Engine</span>
+                        </div>
+                        <h2 class="text-2xl font-bold text-white mt-1">Fundação Local, Fastify Adapter e IoC Container</h2>
+                    </div>
+
+                    <!-- Under the Hood Explanation -->
+                    <div class="bg-slate-950/80 rounded-xl p-5 border border-slate-800 space-y-3">
+                        <h3 class="text-sm font-bold text-emerald-400 flex items-center">
+                            <span class="mr-2">🧠</span> Fundamentos da Etapa: O que ocorre por baixo dos panos?
+                        </h3>
+                        <p class="text-xs text-slate-300 leading-relaxed">
+                            No Express tradicional, o fluxo é imperativo. No NestJS, adotamos **Inversão de Controle (IoC)** e **Injeção de Dependência (DI)**. O IoC Container gerencia o ciclo de vida e a instanciação das classes marcadas com <code class="text-emerald-400">@Injectable()</code>.
+                        </p>
+                        <p class="text-xs text-slate-300 leading-relaxed">
+                            <strong>TypeScript Decorator Metadata:</strong> Ao habilitar <code class="text-emerald-400">emitDecoratorMetadata</code> no <code class="text-slate-200">tsconfig.json</code>, o compilador do TypeScript converte a assinatura do construtor em chamadas <code class="text-emerald-400">Reflect.metadata("design:paramtypes", [...])</code> no JS transpilado. Em runtime, o NestJS lê esse mapa para resolver automaticamente as instâncias requeridas.
+                        </p>
+                    </div>
+
+                    <!-- Hands-on Checklist -->
+                    <div class="bg-slate-900/90 rounded-xl p-5 border border-slate-700/80">
+                        <h3 class="text-sm font-bold text-slate-200 mb-3 flex items-center">
+                            <span class="mr-2">🛠️</span> Sua Vez: Desafio Prático Hands-on
+                        </h3>
+                        <div class="space-y-2 text-xs text-slate-300">
+                            <label class="flex items-start space-x-3 cursor-pointer hover:text-white p-1 rounded">
+                                <input type="checkbox" class="task-checkbox mt-0.5 rounded bg-slate-950 border-slate-700 text-emerald-600 focus:ring-emerald-500" data-id="m0-1">
+                                <span>Subir os containers do PostgreSQL (5432) e Redis (6379) via <code class="text-emerald-400">docker compose up -d</code>.</span>
+                            </label>
+                            <label class="flex items-start space-x-3 cursor-pointer hover:text-white p-1 rounded">
+                                <input type="checkbox" class="task-checkbox mt-0.5 rounded bg-slate-950 border-slate-700 text-emerald-600 focus:ring-emerald-500" data-id="m0-2">
+                                <span>Configurar a variável <code class="text-emerald-400">DATABASE_URL</code> no arquivo <code class="text-slate-300">.env</code> local.</span>
+                            </label>
+                            <label class="flex items-start space-x-3 cursor-pointer hover:text-white p-1 rounded">
+                                <input type="checkbox" class="task-checkbox mt-0.5 rounded bg-slate-950 border-slate-700 text-emerald-600 focus:ring-emerald-500" data-id="m0-3">
+                                <span>Escrever o teste E2E que falha (<code class="text-rose-400 font-semibold">Red</code>) para a rota <code class="text-slate-200">GET /health</code>.</span>
+                            </label>
+                            <label class="flex items-start space-x-3 cursor-pointer hover:text-white p-1 rounded">
+                                <input type="checkbox" class="task-checkbox mt-0.5 rounded bg-slate-950 border-slate-700 text-emerald-600 focus:ring-emerald-500" data-id="m0-4">
+                                <span>Criar o <code class="text-emerald-400">HealthController</code> injetando o <code class="text-emerald-400">PrismaService</code> com a query <code class="text-slate-200">SELECT 1</code> para o teste passar (<code class="text-emerald-400 font-semibold">Green</code>).</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Toggle Gabarito Code Block -->
+                    <div class="border border-slate-700/80 rounded-xl overflow-hidden">
+                        <button onclick="toggleGabarito('gabarito-m0')" class="w-full bg-slate-900 hover:bg-slate-800/80 p-4 text-left font-semibold text-xs text-amber-400 flex items-center justify-between border-b border-slate-800 transition-colors">
+                            <span class="flex items-center"><span class="mr-2">💡</span> Gabarito de Referência & Feedback (Clique para expandir/recolher)</span>
+                            <span id="icon-gabarito-m0" class="text-base">▼</span>
+                        </button>
+                        <div id="gabarito-m0" class="hidden p-4 bg-slate-950 space-y-4 text-xs font-mono">
+                            <p class="text-slate-400 font-sans text-xs">Compare a sua implementação do Healthcheck E2E com este modelo de referência:</p>
+                            <div class="bg-slate-900 p-3 rounded-lg border border-slate-800 overflow-x-auto custom-scrollbar">
+                                <span class="text-slate-500">// test/e2e/health.e2e-spec.ts</span>
+                                <pre class="text-emerald-300"><code>describe('Healthcheck (E2E)', () => {
+  it('GET /health deve responder 200 OK e status do banco', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/health',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(JSON.parse(response.payload)).toEqual({
+      status: 'ok',
+      database: 'up',
+    });
+  });
+});</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB: MILESTONE 1 -->
+            <section id="tab-m1" class="tab-content hidden space-y-6">
+                <div class="bg-slate-800/90 rounded-xl p-6 border border-slate-700/80 shadow-xl space-y-6">
+                    <div>
+                        <div class="flex items-center space-x-2 text-xs font-semibold text-emerald-400 uppercase tracking-wider">
+                            <span>Milestone 1</span>
+                            <span>•</span>
+                            <span>Autenticação & Segurança</span>
+                        </div>
+                        <h2 class="text-2xl font-bold text-white mt-1">Auth, Users, ValidationPipe e JWT Refresh Tokens</h2>
+                    </div>
+
+                    <!-- Under the Hood -->
+                    <div class="bg-slate-950/80 rounded-xl p-5 border border-slate-800 space-y-3">
+                        <h3 class="text-sm font-bold text-emerald-400 flex items-center">
+                            <span class="mr-2">🧠</span> Fundamentos: DTOs em TypeScript e Ciclo de Vida do Guard
+                        </h3>
+                        <p class="text-xs text-slate-300 leading-relaxed">
+                            <strong>Por que usar Classes e não Interfaces para DTOs?</strong> Em TypeScript, <code class="text-rose-300">interface</code> e <code class="text-rose-300">type</code> sofrem <em>Type Erasure</em> durante a transpilação e desaparecem do JS gerado. Se um DTO for uma interface, o NestJS e o <code class="text-emerald-400">class-validator</code> não conseguirão inspecionar metadados em tempo de execução. DTOs devem ser <strong>Classes</strong>.
+                        </p>
+                        <p class="text-xs text-slate-300 leading-relaxed">
+                            <strong>Guards (<code class="text-emerald-400">CanActivate</code>):</strong> O Guard executa após os Middlewares e antes dos Interceptors e Pipes. Ele recebe o <code class="text-emerald-400">ExecutionContext</code>, permitindo tomar decisões de acesso com base na rota invocada.
+                        </p>
+                    </div>
+
+                    <!-- Hands-on Checklist -->
+                    <div class="bg-slate-900/90 rounded-xl p-5 border border-slate-700/80">
+                        <h3 class="text-sm font-bold text-slate-200 mb-3 flex items-center">
+                            <span class="mr-2">🛠️</span> Sua Vez: Desafio Prático Hands-on
+                        </h3>
+                        <div class="space-y-2 text-xs text-slate-300">
+                            <label class="flex items-start space-x-3 cursor-pointer hover:text-white p-1 rounded">
+                                <input type="checkbox" class="task-checkbox mt-0.5 rounded bg-slate-950 border-slate-700 text-emerald-600 focus:ring-emerald-500" data-id="m1-1">
+                                <span>Criar as entidades <code class="text-emerald-400">User</code> e <code class="text-emerald-400">RefreshToken</code> no <code class="text-slate-200">schema.prisma</code> com relação 1:N.</span>
+                            </label>
+                            <label class="flex items-start space-x-3 cursor-pointer hover:text-white p-1 rounded">
+                                <input type="checkbox" class="task-checkbox mt-0.5 rounded bg-slate-950 border-slate-700 text-emerald-600 focus:ring-emerald-500" data-id="m1-2">
+                                <span>Implementar os DTOs de cadastro e login usando decoradores do <code class="text-emerald-400">class-validator</code>.</span>
+                            </label>
+                            <label class="flex items-start space-x-3 cursor-pointer hover:text-white p-1 rounded">
+                                <input type="checkbox" class="task-checkbox mt-0.5 rounded bg-slate-950 border-slate-700 text-emerald-600 focus:ring-emerald-500" data-id="m1-3">
+                                <span>Escrever o teste unitário do <code class="text-emerald-400">AuthService</code> simulando credenciais inválidas com Jest Mocks.</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Toggle Gabarito -->
+                    <div class="border border-slate-700/80 rounded-xl overflow-hidden">
+                        <button onclick="toggleGabarito('gabarito-m1')" class="w-full bg-slate-900 hover:bg-slate-800/80 p-4 text-left font-semibold text-xs text-amber-400 flex items-center justify-between border-b border-slate-800 transition-colors">
+                            <span class="flex items-center"><span class="mr-2">💡</span> Gabarito de Referência & Feedback (Clique para expandir)</span>
+                            <span id="icon-gabarito-m1" class="text-base">▼</span>
+                        </button>
+                        <div id="gabarito-m1" class="hidden p-4 bg-slate-950 space-y-4 text-xs font-mono">
+                            <p class="text-slate-400 font-sans text-xs">Exemplo de DTO de Login com validação e Guard JWT:</p>
+                            <div class="bg-slate-900 p-3 rounded-lg border border-slate-800 overflow-x-auto custom-scrollbar">
+                                <span class="text-slate-500">// src/modules/auth/dto/login.dto.ts</span>
+                                <pre class="text-emerald-300"><code>import { IsEmail, IsNotEmpty, MinLength } from 'class-validator';
+
+export class LoginDto {
+  @IsEmail({}, { message: 'Formato de e-mail inválido' })
+  @IsNotEmpty()
+  email: string;
+
+  @MinLength(6, { message: 'Senha deve conter ao menos 6 caracteres' })
+  password: string;
+}</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB: MILESTONE 2 -->
+            <section id="tab-m2" class="tab-content hidden space-y-6">
+                <div class="bg-slate-800/90 rounded-xl p-6 border border-slate-700/80 shadow-xl space-y-6">
+                    <div>
+                        <div class="flex items-center space-x-2 text-xs font-semibold text-emerald-400 uppercase tracking-wider">
+                            <span>Milestone 2</span>
+                            <span>•</span>
+                            <span>Perfis & Validação Empresarial</span>
+                        </div>
+                        <h2 class="text-2xl font-bold text-white mt-1">Candidates, Companies e Custom Param Decorators</h2>
+                    </div>
+
+                    <!-- Under the Hood -->
+                    <div class="bg-slate-950/80 rounded-xl p-5 border border-slate-800 space-y-3">
+                        <h3 class="text-sm font-bold text-emerald-400 flex items-center">
+                            <span class="mr-2">🧠</span> Custom Param Decorators & Relacionamentos 1:1 no Prisma
+                        </h3>
+                        <p class="text-xs text-slate-300 leading-relaxed">
+                            <strong>Custom Param Decorator:</strong> Permite extrair dados limpos da requisição HTTP sem acoplar o Controller ao objeto de transporte (<code class="text-slate-200">req.user</code>). Criado com <code class="text-emerald-400">createParamDecorator()</code>.
+                        </p>
+                        <p class="text-xs text-slate-300 leading-relaxed">
+                            <strong>Relacionamento 1:1 no Prisma:</strong> Exige obrigatoriamente a restrição <code class="text-amber-300">@unique</code> no campo de chave estrangeira do modelo filho.
+                        </p>
+                    </div>
+
+                    <!-- Hands-on Checklist -->
+                    <div class="bg-slate-900/90 rounded-xl p-5 border border-slate-700/80">
+                        <h3 class="text-sm font-bold text-slate-200 mb-3 flex items-center">
+                            <span class="mr-2">🛠️</span> Sua Vez: Desafio Prático Hands-on
+                        </h3>
+                        <div class="space-y-2 text-xs text-slate-300">
+                            <label class="flex items-start space-x-3 cursor-pointer hover:text-white p-1 rounded">
+                                <input type="checkbox" class="task-checkbox mt-0.5 rounded bg-slate-950 border-slate-700 text-emerald-600 focus:ring-emerald-500" data-id="m2-1">
+                                <span>Criar os modelos <code class="text-emerald-400">CandidateProfile</code> e <code class="text-emerald-400">CompanyProfile</code> no schema.</span>
+                            </label>
+                            <label class="flex items-start space-x-3 cursor-pointer hover:text-white p-1 rounded">
+                                <input type="checkbox" class="task-checkbox mt-0.5 rounded bg-slate-950 border-slate-700 text-emerald-600 focus:ring-emerald-500" data-id="m2-2">
+                                <span>Implementar o Custom Decorator <code class="text-emerald-400">@CurrentUser()</code> em <code class="text-slate-300">common/decorators</code>.</span>
+                            </label>
+                            <label class="flex items-start space-x-3 cursor-pointer hover:text-white p-1 rounded">
+                                <input type="checkbox" class="task-checkbox mt-0.5 rounded bg-slate-950 border-slate-700 text-emerald-600 focus:ring-emerald-500" data-id="m2-3">
+                                <span>Criar o Guard <code class="text-emerald-400">VerifiedCompanyGuard</code> impedindo empresas pendentes de publicar vagas.</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Toggle Gabarito -->
+                    <div class="border border-slate-700/80 rounded-xl overflow-hidden">
+                        <button onclick="toggleGabarito('gabarito-m2')" class="w-full bg-slate-900 hover:bg-slate-800/80 p-4 text-left font-semibold text-xs text-amber-400 flex items-center justify-between border-b border-slate-800 transition-colors">
+                            <span class="flex items-center"><span class="mr-2">💡</span> Gabarito de Referência & Feedback</span>
+                            <span id="icon-gabarito-m2" class="text-base">▼</span>
+                        </button>
+                        <div id="gabarito-m2" class="hidden p-4 bg-slate-950 space-y-4 text-xs font-mono">
+                            <div class="bg-slate-900 p-3 rounded-lg border border-slate-800 overflow-x-auto custom-scrollbar">
+                                <span class="text-slate-500">// src/common/decorators/current-user.decorator.ts</span>
+                                <pre class="text-emerald-300"><code>import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+
+export const CurrentUser = createParamDecorator(
+  (data: string | undefined, ctx: ExecutionContext) => {
+    const request = ctx.switchToHttp().getRequest();
+    const user = request.user;
+    return data ? user?.[data] : user;
+  },
+);</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB: MILESTONE 3 -->
+            <section id="tab-m3" class="tab-content hidden space-y-6">
+                <div class="bg-slate-800/90 rounded-xl p-6 border border-slate-700/80 shadow-xl space-y-6">
+                    <div>
+                        <div class="flex items-center space-x-2 text-xs font-semibold text-emerald-400 uppercase tracking-wider">
+                            <span>Milestone 3</span>
+                            <span>•</span>
+                            <span>Vagas & Candidaturas</span>
+                        </div>
+                        <h2 class="text-2xl font-bold text-white mt-1">Interceptors, Snapshots & Transações Interativas</h2>
+                    </div>
+
+                    <!-- Under the Hood -->
+                    <div class="bg-slate-950/80 rounded-xl p-5 border border-slate-800 space-y-3">
+                        <h3 class="text-sm font-bold text-emerald-400 flex items-center">
+                            <span class="mr-2">🧠</span> Programação Orientada a Aspectos (AOP) e Padrão Snapshot
+                        </h3>
+                        <p class="text-xs text-slate-300 leading-relaxed">
+                            <strong>Interceptors com RxJS:</strong> Permitem envelopar o retorno da rota antes de enviar a resposta HTTP ao cliente, padronizando formatos JSON.
+                        </p>
+                        <p class="text-xs text-slate-300 leading-relaxed">
+                            <strong>Padrão Snapshot:</strong> Grava uma cópia imutável (JSON) do currículo na tabela de candidaturas no instante do envio, prevenindo que alterações futuras afetem a candidatura realizada.
+                        </p>
+                    </div>
+
+                    <!-- Hands-on Checklist -->
+                    <div class="bg-slate-900/90 rounded-xl p-5 border border-slate-700/80">
+                        <h3 class="text-sm font-bold text-slate-200 mb-3 flex items-center">
+                            <span class="mr-2">🛠️</span> Sua Vez: Desafio Prático Hands-on
+                        </h3>
+                        <div class="space-y-2 text-xs text-slate-300">
+                            <label class="flex items-start space-x-3 cursor-pointer hover:text-white p-1 rounded">
+                                <input type="checkbox" class="task-checkbox mt-0.5 rounded bg-slate-950 border-slate-700 text-emerald-600 focus:ring-emerald-500" data-id="m3-1">
+                                <span>Criar restrição composta <code class="text-emerald-400">@@unique([jobId, candidateId])</code> no Prisma.</span>
+                            </label>
+                            <label class="flex items-start space-x-3 cursor-pointer hover:text-white p-1 rounded">
+                                <input type="checkbox" class="task-checkbox mt-0.5 rounded bg-slate-950 border-slate-700 text-emerald-600 focus:ring-emerald-500" data-id="m3-2">
+                                <span>Implementar envio de candidatura usando transação interativa (<code class="text-emerald-400">prisma.$transaction</code>).</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Toggle Gabarito -->
+                    <div class="border border-slate-700/80 rounded-xl overflow-hidden">
+                        <button onclick="toggleGabarito('gabarito-m3')" class="w-full bg-slate-900 hover:bg-slate-800/80 p-4 text-left font-semibold text-xs text-amber-400 flex items-center justify-between border-b border-slate-800 transition-colors">
+                            <span class="flex items-center"><span class="mr-2">💡</span> Gabarito de Referência & Feedback</span>
+                            <span id="icon-gabarito-m3" class="text-base">▼</span>
+                        </button>
+                        <div id="gabarito-m3" class="hidden p-4 bg-slate-950 space-y-4 text-xs font-mono">
+                            <div class="bg-slate-900 p-3 rounded-lg border border-slate-800 overflow-x-auto custom-scrollbar">
+                                <span class="text-slate-500">// Transação Interativa de Candidatura</span>
+                                <pre class="text-emerald-300"><code>await this.prisma.$transaction(async (tx) => {
+  const resume = await tx.resume.findUnique({ where: { id: resumeId } });
+  return tx.application.create({
+    data: {
+      jobId,
+      candidateId,
+      resumeSnapshot: JSON.stringify(resume),
+    },
+  });
+});</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB: MILESTONE 4 -->
+            <section id="tab-m4" class="tab-content hidden space-y-6">
+                <div class="bg-slate-800/90 rounded-xl p-6 border border-slate-700/80 shadow-xl space-y-6">
+                    <div>
+                        <div class="flex items-center space-x-2 text-xs font-semibold text-emerald-400 uppercase tracking-wider">
+                            <span>Milestone 4</span>
+                            <span>•</span>
+                            <span>Processamento Assíncrono</span>
+                        </div>
+                        <h2 class="text-2xl font-bold text-white mt-1">Redis, BullMQ e Worker Process Isolado</h2>
+                    </div>
+
+                    <!-- Under the Hood -->
+                    <div class="bg-slate-950/80 rounded-xl p-5 border border-slate-800 space-y-3">
+                        <h3 class="text-sm font-bold text-emerald-400 flex items-center">
+                            <span class="mr-2">🧠</span> Arquitetura de Filas e Nest Standalone Context
+                        </h3>
+                        <p class="text-xs text-slate-300 leading-relaxed">
+                            Ao desacoplar tarefas pesadas (envio de e-mails/sincronizações), a API HTTP apenas insere a tarefa no Redis e responde HTTP <code class="text-emerald-400">202 Accepted</code>. Um processo <strong>Worker separado</strong> consome a fila em background sem bloquear o Event Loop da API.
+                        </p>
+                    </div>
+
+                    <!-- Hands-on Checklist -->
+                    <div class="bg-slate-900/90 rounded-xl p-5 border border-slate-700/80">
+                        <h3 class="text-sm font-bold text-slate-200 mb-3 flex items-center">
+                            <span class="mr-2">🛠️</span> Sua Vez: Desafio Prático Hands-on
+                        </h3>
+                        <div class="space-y-2 text-xs text-slate-300">
+                            <label class="flex items-start space-x-3 cursor-pointer hover:text-white p-1 rounded">
+                                <input type="checkbox" class="task-checkbox mt-0.5 rounded bg-slate-950 border-slate-700 text-emerald-600 focus:ring-emerald-500" data-id="m4-1">
+                                <span>Configurar o módulo <code class="text-emerald-400">@nestjs/bullmq</code> com Redis.</span>
+                            </label>
+                            <label class="flex items-start space-x-3 cursor-pointer hover:text-white p-1 rounded">
+                                <input type="checkbox" class="task-checkbox mt-0.5 rounded bg-slate-950 border-slate-700 text-emerald-600 focus:ring-emerald-500" data-id="m4-2">
+                                <span>Criar o ponto de entrada <code class="text-slate-200">src/worker.ts</code> via <code class="text-emerald-400">createApplicationContext()</code>.</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Toggle Gabarito -->
+                    <div class="border border-slate-700/80 rounded-xl overflow-hidden">
+                        <button onclick="toggleGabarito('gabarito-m4')" class="w-full bg-slate-900 hover:bg-slate-800/80 p-4 text-left font-semibold text-xs text-amber-400 flex items-center justify-between border-b border-slate-800 transition-colors">
+                            <span class="flex items-center"><span class="mr-2">💡</span> Gabarito de Referência & Feedback</span>
+                            <span id="icon-gabarito-m4" class="text-base">▼</span>
+                        </button>
+                        <div id="gabarito-m4" class="hidden p-4 bg-slate-950 space-y-4 text-xs font-mono">
+                            <div class="bg-slate-900 p-3 rounded-lg border border-slate-800 overflow-x-auto custom-scrollbar">
+                                <span class="text-slate-500">// src/worker.ts</span>
+                                <pre class="text-emerald-300"><code>import { NestFactory } from '@nestjs/core';
+import { WorkerModule } from './worker.module';
+
+async function bootstrap() {
+  const app = await NestFactory.createApplicationContext(WorkerModule);
+  app.enableShutdownHooks();
+  console.log('Worker isolado do BullMQ executando...');
+}
+bootstrap();</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB: MILESTONE 5 -->
+            <section id="tab-m5" class="tab-content hidden space-y-6">
+                <div class="bg-slate-800/90 rounded-xl p-6 border border-slate-700/80 shadow-xl space-y-6">
+                    <div>
+                        <div class="flex items-center space-x-2 text-xs font-semibold text-emerald-400 uppercase tracking-wider">
+                            <span>Milestone 5</span>
+                            <span>•</span>
+                            <span>Integrações & Evidências</span>
+                        </div>
+                        <h2 class="text-2xl font-bold text-white mt-1">Mocks/Stubs, DIP e Tabela de Evidências Flexível</h2>
+                    </div>
+
+                    <!-- Under the Hood -->
+                    <div class="bg-slate-950/80 rounded-xl p-5 border border-slate-800 space-y-3">
+                        <h3 class="text-sm font-bold text-emerald-400 flex items-center">
+                            <span class="mr-2">🧠</span> Inversão de Dependência (DIP) & Metadados JSON
+                        </h3>
+                        <p class="text-xs text-slate-300 leading-relaxed">
+                            Para evitar dependência de APIs externas instáveis em ambiente local, aplicamos DIP através de <strong>Custom Providers</strong> chaveados por variáveis de ambiente.
+                        </p>
+                    </div>
+
+                    <!-- Hands-on Checklist -->
+                    <div class="bg-slate-900/90 rounded-xl p-5 border border-slate-700/80">
+                        <h3 class="text-sm font-bold text-slate-200 mb-3 flex items-center">
+                            <span class="mr-2">🛠️</span> Sua Vez: Desafio Prático Hands-on
+                        </h3>
+                        <div class="space-y-2 text-xs text-slate-300">
+                            <label class="flex items-start space-x-3 cursor-pointer hover:text-white p-1 rounded">
+                                <input type="checkbox" class="task-checkbox mt-0.5 rounded bg-slate-950 border-slate-700 text-emerald-600 focus:ring-emerald-500" data-id="m5-1">
+                                <span>Criar interface contratual <code class="text-emerald-400">IGitHubProvider</code> e implementar a versão Mock.</span>
+                            </label>
+                            <label class="flex items-start space-x-3 cursor-pointer hover:text-white p-1 rounded">
+                                <input type="checkbox" class="task-checkbox mt-0.5 rounded bg-slate-950 border-slate-700 text-emerald-600 focus:ring-emerald-500" data-id="m5-2">
+                                <span>Persistir evidências de repositórios usando a coluna <code class="text-emerald-400">metadata JSON</code> no PostgreSQL.</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Toggle Gabarito -->
+                    <div class="border border-slate-700/80 rounded-xl overflow-hidden">
+                        <button onclick="toggleGabarito('gabarito-m5')" class="w-full bg-slate-900 hover:bg-slate-800/80 p-4 text-left font-semibold text-xs text-amber-400 flex items-center justify-between border-b border-slate-800 transition-colors">
+                            <span class="flex items-center"><span class="mr-2">💡</span> Gabarito de Referência & Feedback</span>
+                            <span id="icon-gabarito-m5" class="text-base">▼</span>
+                        </button>
+                        <div id="gabarito-m5" class="hidden p-4 bg-slate-950 space-y-4 text-xs font-mono">
+                            <div class="bg-slate-900 p-3 rounded-lg border border-slate-800 overflow-x-auto custom-scrollbar">
+                                <span class="text-slate-500">// Provider Dinâmico no NestJS</span>
+                                <pre class="text-emerald-300"><code>{
+  provide: 'IGitHubProvider',
+  useClass: process.env.USE_MOCKS === 'true' ? MockGitHubProvider : RealGitHubProvider,
+}</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB: MILESTONE 6 -->
+            <section id="tab-m6" class="tab-content hidden space-y-6">
+                <div class="bg-slate-800/90 rounded-xl p-6 border border-slate-700/80 shadow-xl space-y-6">
+                    <div>
+                        <div class="flex items-center space-x-2 text-xs font-semibold text-emerald-400 uppercase tracking-wider">
+                            <span>Milestone 6</span>
+                            <span>•</span>
+                            <span>Inteligência & Recomendações</span>
+                        </div>
+                        <h2 class="text-2xl font-bold text-white mt-1">Algoritmo de Matching e Caching com Redis</h2>
+                    </div>
+
+                    <!-- Under the Hood -->
+                    <div class="bg-slate-950/80 rounded-xl p-5 border border-slate-800 space-y-3">
+                        <h3 class="text-sm font-bold text-emerald-400 flex items-center">
+                            <span class="mr-2">🧠</span> N:M Explícito e Padrão Cache-Aside
+                        </h3>
+                        <p class="text-xs text-slate-300 leading-relaxed">
+                            <strong>Cache-Aside:</strong> A requisição busca primeiro a pontuação no Redis. Se não existir (Cache Miss), o cálculo é processado, salvo no Redis com TTL de 30 minutos e então retornado ao cliente.
+                        </p>
+                    </div>
+
+                    <!-- Hands-on Checklist -->
+                    <div class="bg-slate-900/90 rounded-xl p-5 border border-slate-700/80">
+                        <h3 class="text-sm font-bold text-slate-200 mb-3 flex items-center">
+                            <span class="mr-2">🛠️</span> Sua Vez: Desafio Prático Hands-on
+                        </h3>
+                        <div class="space-y-2 text-xs text-slate-300">
+                            <label class="flex items-start space-x-3 cursor-pointer hover:text-white p-1 rounded">
+                                <input type="checkbox" class="task-checkbox mt-0.5 rounded bg-slate-950 border-slate-700 text-emerald-600 focus:ring-emerald-500" data-id="m6-1">
+                                <span>Criar as tabelas de junção explícitas <code class="text-emerald-400">CandidateSkill</code> e <code class="text-emerald-400">JobSkill</code>.</span>
+                            </label>
+                            <label class="flex items-start space-x-3 cursor-pointer hover:text-white p-1 rounded">
+                                <input type="checkbox" class="task-checkbox mt-0.5 rounded bg-slate-950 border-slate-700 text-emerald-600 focus:ring-emerald-500" data-id="m6-2">
+                                <span>Implementar o <code class="text-emerald-400">MatchingService</code> com suporte a Cache-Aside no Redis.</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Toggle Gabarito -->
+                    <div class="border border-slate-700/80 rounded-xl overflow-hidden">
+                        <button onclick="toggleGabarito('gabarito-m6')" class="w-full bg-slate-900 hover:bg-slate-800/80 p-4 text-left font-semibold text-xs text-amber-400 flex items-center justify-between border-b border-slate-800 transition-colors">
+                            <span class="flex items-center"><span class="mr-2">💡</span> Gabarito de Referência & Feedback</span>
+                            <span id="icon-gabarito-m6" class="text-base">▼</span>
+                        </button>
+                        <div id="gabarito-m6" class="hidden p-4 bg-slate-950 space-y-4 text-xs font-mono">
+                            <div class="bg-slate-900 p-3 rounded-lg border border-slate-800 overflow-x-auto custom-scrollbar">
+                                <span class="text-slate-500">// Exemplo de Cache-Aside no MatchingService</span>
+                                <pre class="text-emerald-300"><code>async getScore(jobId: string, candidateId: string) {
+  const key = `match:${jobId}:${candidateId}`;
+  const cached = await this.redis.get(key);
+  if (cached) return JSON.parse(cached);
+
+  const score = await this.calculateLogic(jobId, candidateId);
+  await this.redis.set(key, JSON.stringify(score), 'EX', 1800);
+  return score;
+}</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800 bg-slate-950 py-4 text-center text-xs text-slate-500">
+        <p>HubIT API Backend Roadmap • Guiado por TDD, NestJS, Prisma ORM e PostgreSQL</p>
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Tab Navigation Logic
+            const navButtons = document.querySelectorAll('.nav-btn');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            navButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const targetTab = button.getAttribute('data-tab');
+
+                    navButtons.forEach(btn => {
+                        btn.classList.remove('active', 'text-emerald-400', 'bg-emerald-950/60', 'border-emerald-800/60');
+                        btn.classList.add('text-slate-300');
+                    });
+
+                    button.classList.add('active', 'text-emerald-400', 'bg-emerald-950/60', 'border-emerald-800/60');
+                    button.classList.remove('text-slate-300');
+
+                    tabContents.forEach(content => {
+                        content.classList.add('hidden');
+                    });
+
+                    document.getElementById(targetTab).classList.remove('hidden');
+                });
+            });
+
+            // Interactive Progress Tracking via localStorage
+            const checkboxes = document.querySelectorAll('.task-checkbox');
+            
+            function updateProgress() {
+                const totalTasks = checkboxes.length;
+                let checkedCount = 0;
+
+                checkboxes.forEach(cb => {
+                    const id = cb.getAttribute('data-id');
+                    if (cb.checked) {
+                        checkedCount++;
+                        localStorage.setItem('task-' + id, 'true');
+                    } else {
+                        localStorage.setItem('task-' + id, 'false');
+                    }
+                });
+
+                const percent = Math.round((checkedCount / totalTasks) * 100);
+                document.getElementById('progress-percent').innerText = `${percent}% Concluído`;
+                document.getElementById('progress-bar-fill').style.width = `${percent}%`;
+            }
+
+            // Restore state
+            checkboxes.forEach(cb => {
+                const id = cb.getAttribute('data-id');
+                const saved = localStorage.getItem('task-' + id);
+                if (saved === 'true') {
+                    cb.checked = true;
+                }
+                cb.addEventListener('change', updateProgress);
+            });
+
+            updateProgress();
+
+            // Entity Table Search Filter
+            const searchInput = document.getElementById('entity-search');
+            const tableRows = document.querySelectorAll('#entity-table-body tr');
+
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => {
+                    const query = e.target.value.toLowerCase();
+                    tableRows.forEach(row => {
+                        const text = row.innerText.toLowerCase();
+                        row.style.display = text.includes(query) ? '' : 'none';
+                    });
+                });
+            }
+
+            // Render Chart.js
+            const ctx = document.getElementById('architectureChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Módulos Core', 'Infra & Fila', 'Integrações', 'Matching'],
+                    datasets: [{
+                        data: [45, 25, 15, 15],
+                        backgroundColor: ['#059669', '#3b82f6', '#8b5cf6', '#f59e0b'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#94a3b8',
+                                font: { size: 10 }
+                            }
+                        }
+                    }
+                }
+            });
+        });
+
+        // Toggle Gabarito helper
+        function toggleGabarito(id) {
+            const el = document.getElementById(id);
+            const icon = document.getElementById('icon-' + id);
+            if (el.classList.contains('hidden')) {
+                el.classList.remove('hidden');
+                if (icon) icon.innerText = '▲';
+            } else {
+                el.classList.add('hidden');
+                if (icon) icon.innerText = '▼';
+            }
+        }
+    </script>
+</body>
+</html>
